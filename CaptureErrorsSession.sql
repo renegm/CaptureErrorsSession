@@ -3,15 +3,14 @@ CREATE OR ALTER PROCEDURE Tools.CaptureErrorsSession
 AS
 BEGIN
     SET NOCOUNT ON;
+
     IF @SessionEvent IS NULL
         OR NOT REGEXP_LIKE(@SessionEvent, '^[a-z][a-z0-9_]+$', 'i')
-        OR LEN(@SessionEvent) > 120 /*for _ + spid*/
     BEGIN
         SET @result = '{"status":"No funny names allowed"}';
         RETURN;
     END;
 
-    SET @SessionEvent = CONCAT(@SessionEvent, '_', CONVERT(nvarchar(10), @@SPID));
 
     IF @Action IS NULL
         OR @Action NOT IN ( 'CREATE', 'START', 'STOP', 'DROP', 'GET' )
@@ -42,9 +41,18 @@ BEGIN
         RETURN;
     END;
 
-
     IF @Action = 'CREATE'
     BEGIN
+        DECLARE @AppName nvarchar(300) = APP_NAME();
+
+        IF @AppName IS NULL
+            OR @AppName = ''
+        BEGIN
+            SET @result = '{"status":"App Name null or empty"}';
+            RETURN;
+        END;
+        SET @AppName = REPLACE(@AppName, '''', '''''');
+
         IF @Exist = 1
             SET @SQL = N'DROP EVENT SESSION @SessionEvent ON #DATABASE/SERVER#;' + CHAR(10);
         ELSE
@@ -54,9 +62,11 @@ BEGIN
             = @SQL
               + N'
 CREATE EVENT SESSION @SessionEvent ON #DATABASE/SERVER#
-    ADD EVENT sqlserver.error_reported
-    (WHERE severity >= 11
-         AND sqlserver.session_id = @@SPID)
+    ADD EVENT sqlserver.error_reported (
+     WHERE severity >= 11
+         AND sqlserver.session_id = @@SPID
+         AND sqlserver.client_app_name = ''@AppName''
+     )
     ADD TARGET package0.ring_buffer
     (SET max_memory = 4096)
 WITH (MAX_MEMORY = 16384KB
@@ -65,6 +75,8 @@ WITH (MAX_MEMORY = 16384KB
         SET @SQL = REPLACE(@SQL, '#DATABASE/SERVER#', IIF(@Database = 1, 'DATABASE', 'SERVER'));
         SET @SQL = REPLACE(@SQL, '@@SPID', CONVERT(nvarchar(10), @@SPID));
         SET @SQL = REPLACE(@SQL, '@SessionEvent', QUOTENAME(@SessionEvent));
+        SET @SQL = REPLACE(@SQL, '@AppName', @AppName);
+        
         EXEC sys.sp_executesql @stmt = @SQL;
         SET @result = '{"status":"CREATE Done"}';
         RETURN;
@@ -93,8 +105,10 @@ WITH (MAX_MEMORY = 16384KB
                          , @SessionEvent = @SessionEvent
                          , @Started = @Started OUTPUT;
 
-    IF @Action = 'START' AND @Started = 1
-        OR @Action = 'STOP' AND @Started = 0
+    IF @Action = 'START'
+        AND @Started = 1
+        OR @Action = 'STOP'
+        AND @Started = 0
     BEGIN
         SET @result = '{"status":"SessionEvent already ' + IIF(@Action = 'START', 'started', 'stopped') + '"}';
         RETURN;

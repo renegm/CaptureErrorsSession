@@ -1,5 +1,3 @@
---CREATE TABLE TestError (x int default (0))
-
 DECLARE @result nvarchar(MAX), @SessionEvent sysname = 'SessionEventqqq';
 
 EXEC Tools.CaptureErrorsSession @SessionEvent = @SessionEvent, @Action = 'Create', @result = @result OUTPUT;
