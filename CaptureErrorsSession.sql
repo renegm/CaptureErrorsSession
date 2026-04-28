@@ -47,8 +47,9 @@ BEGIN
 
         IF @AppName IS NULL
             OR @AppName = ''
+            OR CHARINDEX(CHAR(0), @AppName) > 0
         BEGIN
-            SET @result = '{"status":"App Name null or empty"}';
+            SET @result = '{"status":"Invalid App Name"}';
             RETURN;
         END;
         SET @AppName = REPLACE(@AppName, '''', '''''');
@@ -76,7 +77,7 @@ WITH (MAX_MEMORY = 16384KB
         SET @SQL = REPLACE(@SQL, '@@SPID', CONVERT(nvarchar(10), @@SPID));
         SET @SQL = REPLACE(@SQL, '@SessionEvent', QUOTENAME(@SessionEvent));
         SET @SQL = REPLACE(@SQL, '@AppName', @AppName);
-        
+
         EXEC sys.sp_executesql @stmt = @SQL;
         SET @result = '{"status":"CREATE Done"}';
         RETURN;
@@ -160,4 +161,4 @@ WITH (MAX_MEMORY = 16384KB
                       FOR JSON AUTO);
     SET @result = COALESCE(@result, '[]');
 END;
-
+GO
