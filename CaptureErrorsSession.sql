@@ -5,7 +5,8 @@ BEGIN
     SET NOCOUNT ON;
 
     IF @SessionEvent IS NULL
-        OR NOT REGEXP_LIKE(@SessionEvent, '^[a-z][a-z0-9_]+$', 'i')
+        OR @SessionEvent LIKE '%[^a-z0-9_]%'
+        OR @SessionEvent LIKE '[^a-z]%'
     BEGIN
         SET @result = '{"status":"No funny names allowed"}';
         RETURN;
