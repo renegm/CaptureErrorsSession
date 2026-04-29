@@ -21,7 +21,7 @@ BEGIN
     END;
 
     DECLARE @SQL      nvarchar(MAX)
-          , @Database bit          = IIF(SERVERPROPERTY('EngineEdition') IN ( 5, 11, 12 ), 1, 0)
+          , @Database bit          = IIF(SERVERPROPERTY('EngineEdition') IN ( 5, 12 ), 1, 0)
           , @Exist    bit          = 0
           , @Started  bit          = 0
           , @Xml      xml;
@@ -53,6 +53,7 @@ BEGIN
             SET @result = '{"status":"Invalid App Name"}';
             RETURN;
         END;
+
         SET @AppName = REPLACE(@AppName, '''', '''''');
 
         IF @Exist = 1
